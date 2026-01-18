@@ -7,7 +7,7 @@ from typing import List, Set, Optional
 from datetime import datetime
 
 from .platforms import Platform, get_platform_paths, get_all_platforms
-from .config import BACKUP_DIR, ensure_config_dir, load_skills_info, save_skills_info
+from .config import BACKUP_DIR, ensure_config_dir, load_skills_info, save_skills_info, SKILLS_INFO_FILE
 
 
 def scan_skills(platform: Platform) -> List[Path]:
@@ -92,23 +92,36 @@ def clean_skills(platform: Platform, dry_run: bool = False) -> int:
     return deleted_count
 
 
-def sync_skills(master_platform: Platform, fork_platforms: List[Platform], dry_run: bool = False) -> dict:
+def sync_skills(master_platform: Platform, fork_platforms: List[Platform], master_platform_key: str, dry_run: bool = False) -> dict:
     """
     Copy skills from master to all fork platforms.
+    Uses skills_info.json to determine which skills to sync (only syncs what has been scanned).
     
     Args:
         master_platform: The master platform to copy from
         fork_platforms: List of fork platforms to copy to
+        master_platform_key: The platform key (e.g., "claude-code", "cursor") for loading skills_info
         dry_run: If True, only show what would be synced
         
     Returns:
         Dictionary with sync results
     """
-    # Get master skills
-    master_skills = scan_skills(master_platform)
+    # Load skills info from saved scan results
+    # Check if skills_info.json exists
+    if not SKILLS_INFO_FILE.exists():
+        return {"master_skills": 0, "synced_to": {}, "error": "skills_info.json not found. Run 'skills scan' first to scan master platform skills."}
+    
+    all_skills_info = load_skills_info()
+    master_skills_info = all_skills_info.get(master_platform_key, [])
+    
+    if not master_skills_info:
+        return {"master_skills": 0, "synced_to": {}, "error": f"No skills found in skills_info.json for platform '{master_platform_key}'. Run 'skills scan' first."}
+    
+    # Convert path strings back to Path objects
+    master_skills = [Path(skill_info["path"]) for skill_info in master_skills_info if "path" in skill_info]
     
     if not master_skills:
-        return {"master_skills": 0, "synced_to": {}}
+        return {"master_skills": 0, "synced_to": {}, "error": f"No valid skill paths found in skills_info.json for platform '{master_platform_key}'. Run 'skills scan' first."}
     
     # Get master skill paths (the parent directories)
     master_paths = get_platform_paths(master_platform)

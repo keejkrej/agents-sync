@@ -250,7 +250,12 @@ def sync(
     
     console.print(f"\n[bold cyan]Syncing from {get_platform_display_name(master_platform)}...[/bold cyan]")
     
-    results = sync_skills(master_platform, fork_platforms, dry_run=dry_run)
+    results = sync_skills(master_platform, fork_platforms, config.master, dry_run=dry_run)
+    
+    # Check for error message
+    if "error" in results:
+        console.print(f"[bold red]Error: {results['error']}[/bold red]")
+        raise typer.Exit(1)
     
     console.print(f"\n[bold green]Master Skills:[/bold green] {results['master_skills']}")
     console.print("\n[bold cyan]Synced to:[/bold cyan]")

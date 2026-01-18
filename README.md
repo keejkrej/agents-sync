@@ -115,7 +115,9 @@ Configuration is saved to `~/.config/skills-sync/config.json`.
 skills scan
 ```
 
-Scans the master platform's skill folder and displays all found skills.
+Scans the master platform's skill folder and displays all found skills. This saves the skills information to `skills_info.json`, which is used by the sync command.
+
+**Important**: If you add new skills to the master platform, you must run `skills scan` first before syncing, so the new skills are discovered and included in the sync operation.
 
 You can also scan a specific platform:
 
@@ -159,8 +161,10 @@ skills sync
 
 This will copy all skills from master to each fork platform (hard copy, no symlinks). Existing skills in fork platforms will be overwritten.
 
+**Important**: Sync only syncs what has been scanned. If you add new skills to the master platform, you must run `skills scan` first to discover the new skills, then run `skills sync` to sync them.
+
 **Explicit workflow** (recommended for transparency):
-1. First, see what you have: `skills scan`
+1. Scan to discover skills: `skills scan` (required if master has new skills)
 2. Clean forks explicitly: `skills clean fork`
 3. Then sync: `skills sync`
 
@@ -228,6 +232,7 @@ skills platforms
 
 - **Global skills only**: This tool only manages skills in platform directories (e.g., `~/.claude/skills`). Repo-specific skills synced to git should be manually managed
 - **Explicit commands**: Each command does one thing. Run them one by one (`scan`, `clean`, `sync`, `backup`, `restore`) to understand exactly what each step does
+- **Scan before sync**: Sync only syncs what has been scanned. If you add new skills to master, run `skills scan` first, then `skills sync`
 - All file operations use **hard copies** (no symlinks)
 - Backups are timestamped and stored in `~/.config/skills-sync/backups/`
 - Each backup includes `skills_info.json` with path information for accurate restoration
