@@ -21,7 +21,23 @@ A simple Python CLI tool for syncing agent skills across different platforms. No
 
 ## Installation
 
-### Local Installation (Recommended)
+### Install from Git (Recommended)
+
+Using `uv tool install` to install globally from the git repository:
+
+```bash
+uv tool install git+https://github.com/keejkrej/skills-sync.git
+```
+
+After installation, use the `skills` command directly:
+
+```bash
+skills config
+```
+
+**Note**: This installs the tool globally and makes the `skills` and `skills-sync` commands available system-wide.
+
+### Local Installation (Development)
 
 Using `uv` (editable mode - picks up code changes automatically):
 
@@ -39,21 +55,33 @@ skills config
 
 ### Using uvx (Run without installing)
 
-If the package is published to PyPI or available via git:
+Run directly from git without installing:
 
 ```bash
-uvx skills-sync config
+uvx --from git+https://github.com/keejkrej/skills-sync.git skills config
 ```
 
-Or install from local directory (use `--refresh` to pick up code changes):
+Or use the full command name:
 
 ```bash
-uvx --refresh --from . skills-sync config
+uvx --from git+https://github.com/keejkrej/skills-sync.git skills-sync config
+```
+
+Use `--refresh` to pick up code changes:
+
+```bash
+uvx --refresh --from git+https://github.com/keejkrej/skills-sync.git skills config
 ```
 
 **Note**: `uvx` caches packages, so use `--refresh` flag when you make code changes, or clear cache with `uv cache clean` (but this deletes all cached packages).
 
 ### Using pip
+
+```bash
+pip install git+https://github.com/keejkrej/skills-sync.git
+```
+
+Or for editable installation:
 
 ```bash
 pip install -e .
