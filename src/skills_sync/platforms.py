@@ -15,21 +15,21 @@ class Platform(Enum):
 
 
 def _discover_claude_plugin_paths() -> List[Path]:
-    """Discover all plugin skill paths under .claude/plugins/."""
+    """Discover skill paths under .claude/plugins/marketplace only."""
     home = Path.home()
-    plugins_dir = home / ".claude" / "plugins"
+    marketplace_dir = home / ".claude" / "plugins" / "marketplace"
     skill_paths = []
     
-    if plugins_dir.exists() and plugins_dir.is_dir():
-        # Recursively search for 'skills' directories under plugins
+    if marketplace_dir.exists() and marketplace_dir.is_dir():
+        # Recursively search for 'skills' directories under marketplace
         # These are parent directories that contain skill subdirectories
-        for path in plugins_dir.rglob("skills"):
+        for path in marketplace_dir.rglob("skills"):
             if path.is_dir():
                 skill_paths.append(path)
         
-        # Also include the base plugins directory for recursive scanning
+        # Also include the marketplace directory for recursive scanning
         # This allows finding skills in any nested structure
-        skill_paths.append(plugins_dir)
+        skill_paths.append(marketplace_dir)
     
     return skill_paths
 
