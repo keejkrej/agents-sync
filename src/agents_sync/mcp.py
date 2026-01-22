@@ -1,0 +1,138 @@
+"""MCP configuration reading, writing, and translation."""
+
+import json
+import sys
+from pathlib import Path
+from typing import Dict, Any, Optional, List, Tuple
+
+# TOML imports with Python version compatibility
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
+import tomli_w
+
+from .platforms import Platform, get_mcp_paths
+
+
+def read_claude_mcp_servers() -> Tuple[Dict[str, Any], List[str]]:
+    """
+    Read MCP servers from Claude Code configuration.
+
+    Returns:
+        Tuple of (merged mcpServers dict, list of source descriptions)
+    """
+    mcp_paths = get_mcp_paths(Platform.CLAUDE_CODE)
+    servers = {}
+    sources = []
+
+    # Read global config
+    global_path = mcp_paths.get("global")
+    if global_path and global_path.exists():
+        try:
+            with open(global_path, 'r') as f:
+                data = json.load(f)
+                global_servers = data.get("mcpServers", {})
+                for name, config in global_servers.items():
+                    servers[name] = config
+                    sources.append(f"{name} (from ~/.claude.json)")
+        except (json.JSONDecodeError, IOError):
+            pass
+
+    # Read plugin configs
+    plugins_path = mcp_paths.get("plugins")
+    if plugins_path and plugins_path.exists():
+        for mcp_json in plugins_path.rglob(".mcp.json"):
+            try:
+                with open(mcp_json, 'r') as f:
+                    data = json.load(f)
+                    plugin_servers = data.get("mcpServers", {})
+                    plugin_name = mcp_json.parent.name
+                    for name, config in plugin_servers.items():
+                        # Global wins if duplicate
+                        if name not in servers:
+                            servers[name] = config
+                            sources.append(f"{name} (from {plugin_name} plugin)")
+            except (json.JSONDecodeError, IOError):
+                pass
+
+    return servers, sources
+
+
+def read_mcp_servers(platform: Platform) -> Dict[str, Any]:
+    """
+    Read MCP servers from a platform's config file.
+
+    Returns:
+        Dictionary of MCP server configurations in Claude format
+    """
+    mcp_paths = get_mcp_paths(platform)
+    global_path = mcp_paths.get("global")
+
+    if not global_path or not global_path.exists():
+        return {}
+
+    try:
+        if platform == Platform.CLAUDE_CODE:
+            servers, _ = read_claude_mcp_servers()
+            return servers
+
+        elif platform == Platform.CODEX:
+            with open(global_path, 'rb') as f:
+                data = tomllib.load(f)
+            return _codex_to_claude_format(data.get("mcp_servers", {}))
+
+        elif platform == Platform.OPENCODE:
+            with open(global_path, 'r') as f:
+                data = json.load(f)
+            return _opencode_to_claude_format(data.get("mcp", {}))
+
+        elif platform in (Platform.CURSOR, Platform.WINDSURF):
+            with open(global_path, 'r') as f:
+                data = json.load(f)
+            return data.get("mcpServers", {})
+
+    except (json.JSONDecodeError, IOError, tomllib.TOMLDecodeError):
+        pass
+
+    return {}
+
+
+def _codex_to_claude_format(codex_servers: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert Codex mcp_servers format to Claude mcpServers format."""
+    claude_servers = {}
+    for name, config in codex_servers.items():
+        claude_config = {"type": "stdio"}
+        if "command" in config:
+            claude_config["command"] = config["command"]
+        if "args" in config:
+            claude_config["args"] = config["args"]
+        if "env" in config:
+            claude_config["env"] = config["env"]
+        claude_servers[name] = claude_config
+    return claude_servers
+
+
+def _opencode_to_claude_format(opencode_servers: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert OpenCode mcp format to Claude mcpServers format."""
+    claude_servers = {}
+    for name, config in opencode_servers.items():
+        server_type = config.get("type", "local")
+        if server_type == "local":
+            command_list = config.get("command", [])
+            claude_config = {
+                "type": "stdio",
+                "command": command_list[0] if command_list else "",
+                "args": command_list[1:] if len(command_list) > 1 else [],
+            }
+            if "environment" in config:
+                claude_config["env"] = config["environment"]
+        else:  # remote
+            claude_config = {
+                "type": "http",
+                "url": config.get("url", ""),
+            }
+            if "headers" in config:
+                claude_config["headers"] = config["headers"]
+        claude_servers[name] = claude_config
+    return claude_servers
