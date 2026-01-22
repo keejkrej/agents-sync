@@ -23,5 +23,3 @@ dependencies = [
 [project.scripts]
 agents = "agents_sync.cli:main"
 agents-sync = "agents_sync.cli:main"
-skills = "agents_sync.cli:main"
-skills-sync = "agents_sync.cli:main"

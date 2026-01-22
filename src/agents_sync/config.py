@@ -8,7 +8,7 @@ from dataclasses import dataclass, asdict
 
 CONFIG_DIR = Path.home() / ".config" / "agents-sync"
 CONFIG_FILE = CONFIG_DIR / "config.json"
-SKILLS_INFO_FILE = CONFIG_DIR / "skills_info.json"
+AGENTS_INFO_FILE = CONFIG_DIR / "agents_info.json"
 BACKUP_DIR = CONFIG_DIR / "backups"
 
 
@@ -57,7 +57,7 @@ def get_config_path() -> Path:
     return CONFIG_FILE
 
 
-def save_skills_info(platform_key: str, info: dict):
+def save_agents_info(platform_key: str, info: dict):
     """
     Save skills and MCP information for a platform.
 
@@ -66,34 +66,34 @@ def save_skills_info(platform_key: str, info: dict):
         info: Dictionary with 'skills' list and optional 'mcpServers' dict
     """
     ensure_config_dir()
-    
-    # Load existing skills info
-    if SKILLS_INFO_FILE.exists():
+
+    # Load existing info
+    if AGENTS_INFO_FILE.exists():
         try:
-            with open(SKILLS_INFO_FILE, 'r') as f:
-                all_skills_info = json.load(f)
+            with open(AGENTS_INFO_FILE, 'r') as f:
+                all_info = json.load(f)
         except (json.JSONDecodeError, KeyError):
-            all_skills_info = {}
+            all_info = {}
     else:
-        all_skills_info = {}
-    
+        all_info = {}
+
     # Update info for this platform
-    all_skills_info[platform_key] = info
-    
+    all_info[platform_key] = info
+
     # Save back to file
-    with open(SKILLS_INFO_FILE, 'w') as f:
-        json.dump(all_skills_info, f, indent=2)
+    with open(AGENTS_INFO_FILE, 'w') as f:
+        json.dump(all_info, f, indent=2)
 
 
-def load_skills_info() -> dict:
-    """Load all skills information."""
+def load_agents_info() -> dict:
+    """Load all agents information (skills and MCP servers)."""
     ensure_config_dir()
-    
-    if not SKILLS_INFO_FILE.exists():
+
+    if not AGENTS_INFO_FILE.exists():
         return {}
-    
+
     try:
-        with open(SKILLS_INFO_FILE, 'r') as f:
+        with open(AGENTS_INFO_FILE, 'r') as f:
             return json.load(f)
     except (json.JSONDecodeError, KeyError):
         return {}

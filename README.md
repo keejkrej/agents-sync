@@ -54,7 +54,7 @@ After installation, use the `agents` command directly:
 agents config
 ```
 
-**Note**: This installs the tool globally and makes the `agents`, `agents-sync`, `skills`, and `skills-sync` commands available system-wide. The `skills` commands are provided for backwards compatibility.
+**Note**: This installs the tool globally and makes the `agents` and `agents-sync` commands available system-wide.
 
 ### Local Installation (Development)
 
@@ -127,7 +127,7 @@ agents scan
 ```
 
 Scans the master platform and displays:
-- All found skills (saved to `skills_info.json`)
+- All found skills (saved to `agents_info.json`)
 - All MCP servers (from global config and plugin `.mcp.json` files)
 
 **Important**: If you add new skills to the master platform, you must run `agents scan` first before syncing, so the new skills are discovered and included in the sync operation.
@@ -201,7 +201,7 @@ agents backup
 
 Backups are saved to `~/.config/agents-sync/backups/` with timestamps. Each backup includes:
 - All skill files and directories
-- `skills_info.json` with platform, timestamp, and path information for restoration
+- `agents_info.json` with platform, timestamp, and path information for restoration
 
 You can also backup a specific platform:
 
@@ -227,7 +227,7 @@ This will:
 1. List all available backups in an interactive checklist
 2. Show platform, timestamp, and skill count for each backup
 3. Prompt you to select a backup to restore
-4. Restore skills to their original locations (using path information from `skills_info.json`)
+4. Restore skills to their original locations (using path information from `agents_info.json`)
 
 Use `--dry-run` to preview what would be restored:
 
@@ -235,7 +235,7 @@ Use `--dry-run` to preview what would be restored:
 agents restore --dry-run
 ```
 
-**Note**: Restore uses the `skills_info.json` file saved with each backup to restore skills to the correct locations, including Claude Code plugin directories.
+**Note**: Restore uses the `agents_info.json` file saved with each backup to restore skills to the correct locations, including Claude Code plugin directories.
 
 ### List platforms
 
@@ -253,7 +253,6 @@ agents platforms
 - **Scan before sync**: Sync only syncs what has been scanned. If you add new skills to master, run `agents scan` first, then `agents sync`
 - All file operations use **hard copies** (no symlinks)
 - Backups are timestamped and stored in `~/.config/agents-sync/backups/`
-- Each backup includes `skills_info.json` with path information for accurate restoration
+- Each backup includes `agents_info.json` with path information for accurate restoration
 - Clean operations handle Claude Code plugin directories recursively
 - Restore automatically matches paths, with fallback logic for plugin directories
-- **Backwards compatibility**: The `skills` and `skills-sync` commands still work as aliases for `agents` and `agents-sync`

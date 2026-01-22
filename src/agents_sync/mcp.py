@@ -15,13 +15,27 @@ import tomli_w
 from .platforms import Platform, get_mcp_paths
 
 
-def read_claude_mcp_servers() -> Tuple[Dict[str, Any], List[str]]:
+def read_mcp_servers(platform: Platform) -> Tuple[Dict[str, Any], List[str]]:
     """
-    Read MCP servers from Claude Code configuration.
+    Read MCP servers from any platform's configuration.
+    Returns servers in Claude format (canonical internal format).
 
     Returns:
-        Tuple of (merged mcpServers dict, list of source descriptions)
+        Tuple of (mcpServers dict in Claude format, list of source descriptions)
     """
+    if platform == Platform.CLAUDE_CODE:
+        return _read_claude_mcp()
+    elif platform == Platform.CODEX:
+        return _read_codex_mcp()
+    elif platform == Platform.OPENCODE:
+        return _read_opencode_mcp()
+    elif platform in (Platform.CURSOR, Platform.WINDSURF):
+        return _read_cursor_windsurf_mcp(platform)
+    return {}, []
+
+
+def _read_claude_mcp() -> Tuple[Dict[str, Any], List[str]]:
+    """Read MCP servers from Claude Code configuration."""
     mcp_paths = get_mcp_paths(Platform.CLAUDE_CODE)
     servers = {}
     sources = []
@@ -40,7 +54,6 @@ def read_claude_mcp_servers() -> Tuple[Dict[str, Any], List[str]]:
             pass
 
     # Read plugin configs
-    # Plugin .mcp.json files have server name as top-level key, not under mcpServers
     plugins_path = mcp_paths.get("plugins")
     if plugins_path and plugins_path.exists():
         for mcp_json in plugins_path.rglob(".mcp.json"):
@@ -48,9 +61,7 @@ def read_claude_mcp_servers() -> Tuple[Dict[str, Any], List[str]]:
                 with open(mcp_json, 'r') as f:
                     data = json.load(f)
                     plugin_name = mcp_json.parent.name
-                    # Each key in the file is a server name
                     for name, config in data.items():
-                        # Global wins if duplicate
                         if name not in servers:
                             servers[name] = config
                             sources.append(f"{name} (from {plugin_name} plugin)")
@@ -58,6 +69,97 @@ def read_claude_mcp_servers() -> Tuple[Dict[str, Any], List[str]]:
                 pass
 
     return servers, sources
+
+
+def _read_cursor_windsurf_mcp(platform: Platform) -> Tuple[Dict[str, Any], List[str]]:
+    """Read MCP servers from Cursor/Windsurf (same format as Claude)."""
+    mcp_paths = get_mcp_paths(platform)
+    global_path = mcp_paths.get("global")
+    servers = {}
+    sources = []
+
+    if global_path and global_path.exists():
+        try:
+            with open(global_path, 'r') as f:
+                data = json.load(f)
+                for name, config in data.get("mcpServers", {}).items():
+                    servers[name] = config
+                    sources.append(f"{name} (from {global_path.name})")
+        except (json.JSONDecodeError, IOError):
+            pass
+
+    return servers, sources
+
+
+def _read_codex_mcp() -> Tuple[Dict[str, Any], List[str]]:
+    """Read MCP servers from Codex config.toml and convert to Claude format."""
+    mcp_paths = get_mcp_paths(Platform.CODEX)
+    global_path = mcp_paths.get("global")
+    servers = {}
+    sources = []
+
+    if global_path and global_path.exists():
+        try:
+            with open(global_path, 'rb') as f:
+                data = tomllib.load(f)
+                for name, config in data.get("mcp_servers", {}).items():
+                    # Convert Codex format to Claude format
+                    claude_config = {}
+                    if "command" in config:
+                        claude_config["command"] = config["command"]
+                    if "args" in config:
+                        claude_config["args"] = config["args"]
+                    if "env" in config:
+                        claude_config["env"] = config["env"]
+                    servers[name] = claude_config
+                    sources.append(f"{name} (from config.toml)")
+        except (tomllib.TOMLDecodeError, IOError):
+            pass
+
+    return servers, sources
+
+
+def _read_opencode_mcp() -> Tuple[Dict[str, Any], List[str]]:
+    """Read MCP servers from OpenCode config and convert to Claude format."""
+    mcp_paths = get_mcp_paths(Platform.OPENCODE)
+    global_path = mcp_paths.get("global")
+    servers = {}
+    sources = []
+
+    if global_path and global_path.exists():
+        try:
+            with open(global_path, 'r') as f:
+                data = json.load(f)
+                for name, config in data.get("mcp", {}).items():
+                    # Convert OpenCode format to Claude format
+                    server_type = config.get("type", "local")
+                    if server_type == "local":
+                        command_list = config.get("command", [])
+                        claude_config = {
+                            "command": command_list[0] if command_list else "",
+                            "args": command_list[1:] if len(command_list) > 1 else [],
+                        }
+                        if "environment" in config:
+                            claude_config["env"] = config["environment"]
+                    else:  # remote
+                        claude_config = {
+                            "type": "http",
+                            "url": config.get("url", ""),
+                        }
+                        if "headers" in config:
+                            claude_config["headers"] = config["headers"]
+                    servers[name] = claude_config
+                    sources.append(f"{name} (from opencode.json)")
+        except (json.JSONDecodeError, IOError):
+            pass
+
+    return servers, sources
+
+
+# Keep old name for backward compatibility within this file
+def read_claude_mcp_servers() -> Tuple[Dict[str, Any], List[str]]:
+    """Deprecated: Use read_mcp_servers(Platform.CLAUDE_CODE) instead."""
+    return _read_claude_mcp()
 
 
 def write_mcp_servers(platform: Platform, servers: Dict[str, Any], dry_run: bool = False) -> bool:

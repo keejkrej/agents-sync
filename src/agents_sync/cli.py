@@ -10,10 +10,10 @@ from rich.table import Table
 from rich.prompt import Prompt, Confirm
 import inquirer
 
-from .config import load_config, save_config, Config, save_skills_info, load_skills_info, BACKUP_DIR
+from .config import load_config, save_config, Config, save_agents_info, load_agents_info, BACKUP_DIR
 from .platforms import Platform, get_all_platforms, get_platform_display_name, get_platform_paths
 from .core import scan_skills, clean_skills, sync_skills, backup_skills, list_backups, restore_skills
-from .mcp import read_claude_mcp_servers, clean_mcp_servers
+from .mcp import read_mcp_servers, clean_mcp_servers
 
 app = typer.Typer(help="Agents Sync - Sync agent skills and MCP servers across platforms")
 console = Console()
@@ -143,7 +143,7 @@ def scan(
     else:
         config = load_config()
         if not config.master:
-            console.print("[bold red]Error: No master platform configured. Run 'skills config' first.[/bold red]")
+            console.print("[bold red]Error: No master platform configured. Run 'agents config' first.[/bold red]")
             raise typer.Exit(1)
         scan_platform = platforms[config.master]
         platform_key = config.master
@@ -160,18 +160,15 @@ def scan(
             "path": str(skill)
         })
     
-    # Scan MCP servers (only for Claude Code as master)
-    mcp_servers = {}
-    mcp_sources = []
-    if scan_platform == Platform.CLAUDE_CODE:
-        mcp_servers, mcp_sources = read_claude_mcp_servers()
+    # Scan MCP servers from any platform
+    mcp_servers, mcp_sources = read_mcp_servers(scan_platform)
 
     # Save combined info
     combined_info = {
         "skills": skills_info,
         "mcpServers": mcp_servers
     }
-    save_skills_info(platform_key, combined_info)
+    save_agents_info(platform_key, combined_info)
 
     if not skills and not mcp_servers:
         console.print("[yellow]No skills or MCP servers found.[/yellow]")
@@ -209,13 +206,13 @@ def clean(
     
     if target == "master":
         if not config.master:
-            console.print("[bold red]Error: No master platform configured. Run 'skills config' first.[/bold red]")
+            console.print("[bold red]Error: No master platform configured. Run 'agents config' first.[/bold red]")
             raise typer.Exit(1)
         platform = platforms[config.master]
         platform_name = get_platform_display_name(platform)
     elif target == "fork":
         if not config.forks:
-            console.print("[bold red]Error: No fork platforms configured. Run 'skills config' first.[/bold red]")
+            console.print("[bold red]Error: No fork platforms configured. Run 'agents config' first.[/bold red]")
             raise typer.Exit(1)
         # Clean all forks
         for fork_key in config.forks:
@@ -258,11 +255,11 @@ def sync(
     platforms = get_all_platforms()
     
     if not config.master:
-        console.print("[bold red]Error: No master platform configured. Run 'skills config' first.[/bold red]")
+        console.print("[bold red]Error: No master platform configured. Run 'agents config' first.[/bold red]")
         raise typer.Exit(1)
     
     if not config.forks:
-        console.print("[bold red]Error: No fork platforms configured. Run 'skills config' first.[/bold red]")
+        console.print("[bold red]Error: No fork platforms configured. Run 'agents config' first.[/bold red]")
         raise typer.Exit(1)
     
     master_platform = platforms[config.master]
@@ -309,7 +306,7 @@ def backup(
     else:
         config = load_config()
         if not config.master:
-            console.print("[bold red]Error: No master platform configured. Run 'skills config' first.[/bold red]")
+            console.print("[bold red]Error: No master platform configured. Run 'agents config' first.[/bold red]")
             raise typer.Exit(1)
         backup_platform = platforms[config.master]
     
@@ -328,7 +325,7 @@ def info():
     """Display current master-fork config and existing skills information."""
     config = load_config()
     platforms = get_all_platforms()
-    skills_info = load_skills_info()
+    skills_info = load_agents_info()
     
     # Display configuration
     console.print("\n[bold cyan]Configuration:[/bold cyan]")
@@ -373,7 +370,7 @@ def info():
                     console.print(f"\n  [bold]{platform_name}:[/bold] [yellow]No skills scanned[/yellow]")
     
     if not config.master and not config.forks:
-        console.print("\n[yellow]No configuration set. Run 'skills config' to configure master and forks.[/yellow]")
+        console.print("\n[yellow]No configuration set. Run 'agents config' to configure master and forks.[/yellow]")
 
 
 @app.command()
@@ -391,7 +388,7 @@ def select_backup_checklist(backups: List[Path]) -> Optional[Path]:
     choices = []
     for backup_path in backups:
         # Parse backup info to get platform and timestamp
-        info_file = backup_path / "skills_info.json"
+        info_file = backup_path / "agents_info.json"
         if info_file.exists():
             try:
                 with open(info_file, 'r') as f:
@@ -462,7 +459,7 @@ def restore(
     console.print(f"\n[bold cyan]Restoring from backup: {selected_backup.name}[/bold cyan]")
     
     # Load backup info to show what will be restored
-    info_file = selected_backup / "skills_info.json"
+    info_file = selected_backup / "agents_info.json"
     skill_count = 0
     platform_name = "Unknown"
     
