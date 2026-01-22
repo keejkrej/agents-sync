@@ -218,17 +218,16 @@ def clean(
             console.print("[bold red]Error: No fork platforms configured. Run 'skills config' first.[/bold red]")
             raise typer.Exit(1)
         # Clean all forks
-        total_deleted = 0
         for fork_key in config.forks:
             platform = platforms[fork_key]
             platform_name = get_platform_display_name(platform)
             console.print(f"\n[bold cyan]Cleaning {platform_name}...[/bold cyan]")
             deleted = clean_skills(platform, dry_run=dry_run)
-            total_deleted += deleted
+            mcp_deleted = clean_mcp_servers(platform, dry_run=dry_run)
             if dry_run:
-                console.print(f"[yellow]Would delete {deleted} skill(s)[/yellow]")
+                console.print(f"[yellow]Would delete {deleted} skill(s), {mcp_deleted} MCP server(s)[/yellow]")
             else:
-                console.print(f"[green]Deleted {deleted} skill(s)[/green]")
+                console.print(f"[green]Deleted {deleted} skill(s), {mcp_deleted} MCP server(s)[/green]")
         return
     else:
         console.print(f"[bold red]Error: Target must be 'master' or 'fork', got '{target}'[/bold red]")
@@ -242,11 +241,12 @@ def clean(
             return
     
     deleted = clean_skills(platform, dry_run=dry_run)
-    
+    mcp_deleted = clean_mcp_servers(platform, dry_run=dry_run)
+
     if dry_run:
-        console.print(f"[yellow]Would delete {deleted} skill(s)[/yellow]")
+        console.print(f"[yellow]Would delete {deleted} skill(s), {mcp_deleted} MCP server(s)[/yellow]")
     else:
-        console.print(f"[green]Deleted {deleted} skill(s)[/green]")
+        console.print(f"[green]Deleted {deleted} skill(s), {mcp_deleted} MCP server(s)[/green]")
 
 
 @app.command()
