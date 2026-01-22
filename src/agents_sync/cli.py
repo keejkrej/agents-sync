@@ -13,6 +13,7 @@ import inquirer
 from .config import load_config, save_config, Config, save_skills_info, load_skills_info, BACKUP_DIR
 from .platforms import Platform, get_all_platforms, get_platform_display_name, get_platform_paths
 from .core import scan_skills, clean_skills, sync_skills, backup_skills, list_backups, restore_skills
+from .mcp import read_claude_mcp_servers, clean_mcp_servers
 
 app = typer.Typer(help="Skills Sync - Sync agent skills across platforms")
 console = Console()
@@ -159,23 +160,42 @@ def scan(
             "path": str(skill)
         })
     
-    # Save skills info to file
-    save_skills_info(platform_key, skills_info)
-    
-    if not skills:
-        console.print("[yellow]No skills found.[/yellow]")
-        console.print(f"[dim]Skills info saved to config directory.[/dim]")
+    # Scan MCP servers (only for Claude Code as master)
+    mcp_servers = {}
+    mcp_sources = []
+    if scan_platform == Platform.CLAUDE_CODE:
+        mcp_servers, mcp_sources = read_claude_mcp_servers()
+
+    # Save combined info
+    combined_info = {
+        "skills": skills_info,
+        "mcpServers": mcp_servers
+    }
+    save_skills_info(platform_key, combined_info)
+
+    if not skills and not mcp_servers:
+        console.print("[yellow]No skills or MCP servers found.[/yellow]")
+        console.print(f"[dim]Info saved to config directory.[/dim]")
         return
-    
-    table = Table(title=f"Found {len(skills)} skill(s)")
-    table.add_column("Skill Name", style="cyan")
-    table.add_column("Path", style="yellow")
-    
-    for skill in skills:
-        table.add_row(skill.name, str(skill))
-    
-    console.print(table)
-    console.print(f"\n[dim]Skills info saved to config directory.[/dim]")
+
+    # Display skills
+    if skills:
+        table = Table(title=f"Found {len(skills)} skill(s)")
+        table.add_column("Skill Name", style="cyan")
+        table.add_column("Path", style="yellow")
+
+        for skill in skills:
+            table.add_row(skill.name, str(skill))
+
+        console.print(table)
+
+    # Display MCP servers
+    if mcp_servers:
+        console.print(f"\n[bold cyan]MCP Servers ({len(mcp_servers)}):[/bold cyan]")
+        for source in mcp_sources:
+            console.print(f"  • {source}")
+
+    console.print(f"\n[dim]Info saved to config directory.[/dim]")
 
 
 @app.command()
