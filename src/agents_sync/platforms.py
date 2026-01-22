@@ -72,6 +72,37 @@ def get_platform_paths(platform: Platform) -> List[Path]:
     return platform_paths.get(platform, [])
 
 
+def get_mcp_paths(platform: Platform) -> dict:
+    """
+    Get MCP config file paths for a platform.
+
+    Returns:
+        Dictionary with 'global' and optionally 'plugins' paths
+    """
+    home = Path.home()
+
+    mcp_paths = {
+        Platform.CLAUDE_CODE: {
+            "global": home / ".claude.json",
+            "plugins": home / ".claude" / "plugins" / "cache",
+        },
+        Platform.CODEX: {
+            "global": home / ".codex" / "config.toml",
+        },
+        Platform.OPENCODE: {
+            "global": home / ".config" / "opencode" / "opencode.json",
+        },
+        Platform.CURSOR: {
+            "global": home / ".cursor" / "mcp.json",
+        },
+        Platform.WINDSURF: {
+            "global": home / ".codeium" / "windsurf" / "mcp_config.json",
+        },
+    }
+
+    return mcp_paths.get(platform, {})
+
+
 def get_all_platforms() -> Dict[str, Platform]:
     """Get all platforms as a dictionary."""
     return {p.value: p for p in Platform}
