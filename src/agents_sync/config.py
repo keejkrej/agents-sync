@@ -57,13 +57,13 @@ def get_config_path() -> Path:
     return CONFIG_FILE
 
 
-def save_skills_info(platform_key: str, skills: List[dict]):
+def save_skills_info(platform_key: str, info: dict):
     """
-    Save skills information for a platform.
-    
+    Save skills and MCP information for a platform.
+
     Args:
         platform_key: The platform key
-        skills: List of skill dictionaries with 'name' and 'path' keys
+        info: Dictionary with 'skills' list and optional 'mcpServers' dict
     """
     ensure_config_dir()
     
@@ -77,8 +77,8 @@ def save_skills_info(platform_key: str, skills: List[dict]):
     else:
         all_skills_info = {}
     
-    # Update skills info for this platform
-    all_skills_info[platform_key] = skills
+    # Update info for this platform
+    all_skills_info[platform_key] = info
     
     # Save back to file
     with open(SKILLS_INFO_FILE, 'w') as f:

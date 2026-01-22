@@ -15,7 +15,7 @@ from .platforms import Platform, get_all_platforms, get_platform_display_name, g
 from .core import scan_skills, clean_skills, sync_skills, backup_skills, list_backups, restore_skills
 from .mcp import read_claude_mcp_servers, clean_mcp_servers
 
-app = typer.Typer(help="Skills Sync - Sync agent skills across platforms")
+app = typer.Typer(help="Agents Sync - Sync agent skills and MCP servers across platforms")
 console = Console()
 
 
