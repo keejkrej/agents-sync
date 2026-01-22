@@ -267,3 +267,72 @@ def _write_cursor_windsurf_mcp(path: Path, servers: Dict[str, Any]):
     data["mcpServers"] = servers
     with open(path, 'w') as f:
         json.dump(data, f, indent=2)
+
+
+def clean_mcp_servers(platform: Platform, dry_run: bool = False) -> int:
+    """
+    Remove MCP servers from a platform's config.
+
+    Returns:
+        Number of servers removed
+    """
+    mcp_paths = get_mcp_paths(platform)
+    removed_count = 0
+
+    # Count existing servers first
+    existing_servers = read_mcp_servers(platform)
+    removed_count = len(existing_servers)
+
+    if dry_run or removed_count == 0:
+        return removed_count
+
+    global_path = mcp_paths.get("global")
+
+    try:
+        if platform == Platform.CLAUDE_CODE:
+            # Clean global config
+            if global_path and global_path.exists():
+                with open(global_path, 'r') as f:
+                    data = json.load(f)
+                if "mcpServers" in data:
+                    del data["mcpServers"]
+                    with open(global_path, 'w') as f:
+                        json.dump(data, f, indent=2)
+
+            # Clean plugin .mcp.json files
+            plugins_path = mcp_paths.get("plugins")
+            if plugins_path and plugins_path.exists():
+                for mcp_json in plugins_path.rglob(".mcp.json"):
+                    mcp_json.unlink()
+
+        elif platform == Platform.CODEX:
+            if global_path and global_path.exists():
+                with open(global_path, 'rb') as f:
+                    data = tomllib.load(f)
+                if "mcp_servers" in data:
+                    del data["mcp_servers"]
+                    with open(global_path, 'wb') as f:
+                        tomli_w.dump(data, f)
+
+        elif platform == Platform.OPENCODE:
+            if global_path and global_path.exists():
+                with open(global_path, 'r') as f:
+                    data = json.load(f)
+                if "mcp" in data:
+                    del data["mcp"]
+                    with open(global_path, 'w') as f:
+                        json.dump(data, f, indent=2)
+
+        elif platform in (Platform.CURSOR, Platform.WINDSURF):
+            if global_path and global_path.exists():
+                with open(global_path, 'r') as f:
+                    data = json.load(f)
+                if "mcpServers" in data:
+                    del data["mcpServers"]
+                    with open(global_path, 'w') as f:
+                        json.dump(data, f, indent=2)
+
+    except (json.JSONDecodeError, IOError, tomllib.TOMLDecodeError):
+        pass
+
+    return removed_count
