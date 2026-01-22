@@ -136,3 +136,134 @@ def _opencode_to_claude_format(opencode_servers: Dict[str, Any]) -> Dict[str, An
                 claude_config["headers"] = config["headers"]
         claude_servers[name] = claude_config
     return claude_servers
+
+
+def write_mcp_servers(platform: Platform, servers: Dict[str, Any], dry_run: bool = False) -> bool:
+    """
+    Write MCP servers to a platform's config file.
+    Translates from Claude format to target format.
+
+    Returns:
+        True if successful
+    """
+    mcp_paths = get_mcp_paths(platform)
+    global_path = mcp_paths.get("global")
+
+    if not global_path:
+        return False
+
+    if dry_run:
+        return True
+
+    # Ensure parent directory exists
+    global_path.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        if platform == Platform.CLAUDE_CODE:
+            _write_claude_mcp(global_path, servers)
+        elif platform == Platform.CODEX:
+            _write_codex_mcp(global_path, servers)
+        elif platform == Platform.OPENCODE:
+            _write_opencode_mcp(global_path, servers)
+        elif platform in (Platform.CURSOR, Platform.WINDSURF):
+            _write_cursor_windsurf_mcp(global_path, servers)
+        return True
+    except IOError:
+        return False
+
+
+def _write_claude_mcp(path: Path, servers: Dict[str, Any]):
+    """Write MCP servers to Claude config."""
+    data = {}
+    if path.exists():
+        try:
+            with open(path, 'r') as f:
+                data = json.load(f)
+        except json.JSONDecodeError:
+            pass
+
+    data["mcpServers"] = servers
+    with open(path, 'w') as f:
+        json.dump(data, f, indent=2)
+
+
+def _write_codex_mcp(path: Path, servers: Dict[str, Any]):
+    """Write MCP servers to Codex config.toml."""
+    data = {}
+    if path.exists():
+        try:
+            with open(path, 'rb') as f:
+                data = tomllib.load(f)
+        except tomllib.TOMLDecodeError:
+            pass
+
+    # Convert Claude format to Codex format
+    codex_servers = {}
+    for name, config in servers.items():
+        codex_config = {}
+        if "command" in config:
+            codex_config["command"] = config["command"]
+        if "args" in config:
+            codex_config["args"] = config["args"]
+        if "env" in config:
+            codex_config["env"] = config["env"]
+        codex_servers[name] = codex_config
+
+    data["mcp_servers"] = codex_servers
+    with open(path, 'wb') as f:
+        tomli_w.dump(data, f)
+
+
+def _write_opencode_mcp(path: Path, servers: Dict[str, Any]):
+    """Write MCP servers to OpenCode config."""
+    data = {}
+    if path.exists():
+        try:
+            with open(path, 'r') as f:
+                data = json.load(f)
+        except json.JSONDecodeError:
+            pass
+
+    # Convert Claude format to OpenCode format
+    opencode_servers = {}
+    for name, config in servers.items():
+        server_type = config.get("type", "stdio")
+        if server_type == "stdio":
+            command_list = [config.get("command", "")]
+            if "args" in config:
+                command_list.extend(config["args"])
+            opencode_config = {
+                "type": "local",
+                "command": command_list,
+                "enabled": True,
+            }
+            if "env" in config:
+                opencode_config["environment"] = config["env"]
+        else:  # http
+            opencode_config = {
+                "type": "remote",
+                "url": config.get("url", ""),
+                "enabled": True,
+            }
+            if "headers" in config:
+                opencode_config["headers"] = config["headers"]
+        opencode_servers[name] = opencode_config
+
+    data["mcp"] = opencode_servers
+    with open(path, 'w') as f:
+        json.dump(data, f, indent=2)
+
+
+def _write_cursor_windsurf_mcp(path: Path, servers: Dict[str, Any]):
+    """Write MCP servers to Cursor/Windsurf config (same format as Claude)."""
+    data = {}
+    if path.exists():
+        try:
+            with open(path, 'r') as f:
+                data = json.load(f)
+        except json.JSONDecodeError:
+            pass
+
+    data["mcpServers"] = servers
+    with open(path, 'w') as f:
+        json.dump(data, f, indent=2)
