@@ -61,8 +61,13 @@ def _read_claude_mcp() -> Tuple[Dict[str, Any], List[str]]:
                 with open(mcp_json, 'r') as f:
                     data = json.load(f)
                     plugin_name = mcp_json.parent.name
-                    for name, config in data.items():
-                        if name not in servers:
+                    # Some plugins wrap configs in "mcpServers" (e.g. Stripe)
+                    if "mcpServers" in data and isinstance(data["mcpServers"], dict):
+                        entries = data["mcpServers"]
+                    else:
+                        entries = data
+                    for name, config in entries.items():
+                        if isinstance(config, dict) and name not in servers:
                             servers[name] = config
                             sources.append(f"{name} (from {plugin_name} plugin)")
             except (json.JSONDecodeError, IOError):
@@ -323,8 +328,10 @@ def _count_mcp_servers(platform: Platform) -> int:
 
     try:
         if platform == Platform.CLAUDE_CODE:
-            servers, _ = read_claude_mcp_servers()
-            return len(servers)
+            # Only count global servers (plugins are not cleaned)
+            with open(global_path, 'r') as f:
+                data = json.load(f)
+            return len(data.get("mcpServers", {}))
         elif platform == Platform.CODEX:
             with open(global_path, 'rb') as f:
                 data = tomllib.load(f)
@@ -360,7 +367,8 @@ def clean_mcp_servers(platform: Platform, dry_run: bool = False) -> int:
 
     try:
         if platform == Platform.CLAUDE_CODE:
-            # Clean global config
+            # Clean global config only — plugin .mcp.json files are
+            # managed by Claude Code and should not be mutated
             if global_path and global_path.exists():
                 with open(global_path, 'r') as f:
                     data = json.load(f)
@@ -368,12 +376,6 @@ def clean_mcp_servers(platform: Platform, dry_run: bool = False) -> int:
                     del data["mcpServers"]
                     with open(global_path, 'w') as f:
                         json.dump(data, f, indent=2)
-
-            # Clean plugin .mcp.json files
-            plugins_path = mcp_paths.get("plugins")
-            if plugins_path and plugins_path.exists():
-                for mcp_json in plugins_path.rglob(".mcp.json"):
-                    mcp_json.unlink()
 
         elif platform == Platform.CODEX:
             if global_path and global_path.exists():

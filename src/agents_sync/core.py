@@ -54,22 +54,29 @@ def scan_skills(platform: Platform) -> List[Path]:
 def clean_skills(platform: Platform, dry_run: bool = False) -> int:
     """
     Delete all skills from a platform.
-    For Claude Code, this includes skills in plugin directories.
-    
+    For Claude Code, only cleans user-managed skills (~/.claude/skills),
+    not plugin directories which are managed by Claude Code.
+
     Args:
         platform: The platform to clean
         dry_run: If True, only show what would be deleted
-        
+
     Returns:
         Number of skills deleted
     """
     skill_paths = get_platform_paths(platform)
     deleted_count = 0
     seen_skills = set()  # Track by absolute path to avoid duplicates
-    
+
+    # For Claude Code, skip plugin directories — they are managed by Claude Code
+    plugins_dir = Path.home() / ".claude" / "plugins"
+
     for skill_dir in skill_paths:
         if skill_dir.exists() and skill_dir.is_dir():
             if platform == Platform.CLAUDE_CODE:
+                # Skip plugin directories — only clean user-managed skills
+                if skill_dir.resolve().is_relative_to(plugins_dir.resolve()):
+                    continue
                 # For Claude Code, recursively find all SKILL.md files and delete their parent directories
                 for skill_md in skill_dir.rglob("SKILL.md"):
                     skill_path = skill_md.parent
