@@ -12,7 +12,7 @@ class Platform(Enum):
     OPENCODE = "opencode"
     CODEX = "codex"
     CURSOR = "cursor"
-    WINDSURF = "windsurf"
+    GEMINI = "gemini"
 
 
 def _get_installed_plugin_paths() -> List[Path]:
@@ -98,8 +98,8 @@ def get_platform_paths(platform: Platform) -> List[Path]:
         Platform.CURSOR: [
             home / ".cursor" / "skills",
         ],
-        Platform.WINDSURF: [
-            home / ".windsurf" / "skills",
+        Platform.GEMINI: [
+            home / ".gemini" / "skills",
         ],
     }
     
@@ -129,8 +129,8 @@ def get_mcp_paths(platform: Platform) -> dict:
         Platform.CURSOR: {
             "global": home / ".cursor" / "mcp.json",
         },
-        Platform.WINDSURF: {
-            "global": home / ".codeium" / "windsurf" / "mcp_config.json",
+        Platform.GEMINI: {
+            "global": home / ".gemini" / "settings.json",
         },
     }
 
@@ -149,6 +149,6 @@ def get_platform_display_name(platform: Platform) -> str:
         Platform.OPENCODE: "OpenCode",
         Platform.CODEX: "Codex",
         Platform.CURSOR: "Cursor",
-        Platform.WINDSURF: "Windsurf",
+        Platform.GEMINI: "Gemini CLI",
     }
     return names.get(platform, platform.value)

@@ -29,8 +29,8 @@ def read_mcp_servers(platform: Platform) -> Tuple[Dict[str, Any], List[str]]:
         return _read_codex_mcp()
     elif platform == Platform.OPENCODE:
         return _read_opencode_mcp()
-    elif platform in (Platform.CURSOR, Platform.WINDSURF):
-        return _read_cursor_windsurf_mcp(platform)
+    elif platform in (Platform.CURSOR, Platform.GEMINI):
+        return _read_json_mcpservers(platform)
     return {}, []
 
 
@@ -78,8 +78,8 @@ def _read_claude_mcp() -> Tuple[Dict[str, Any], List[str]]:
     return servers, sources
 
 
-def _read_cursor_windsurf_mcp(platform: Platform) -> Tuple[Dict[str, Any], List[str]]:
-    """Read MCP servers from Cursor/Windsurf (same format as Claude)."""
+def _read_json_mcpservers(platform: Platform) -> Tuple[Dict[str, Any], List[str]]:
+    """Read MCP servers from JSON config with mcpServers key (Cursor, Gemini)."""
     mcp_paths = get_mcp_paths(platform)
     global_path = mcp_paths.get("global")
     servers = {}
@@ -205,8 +205,8 @@ def write_mcp_servers(platform: Platform, servers: Dict[str, Any], dry_run: bool
             _write_codex_mcp(global_path, servers)
         elif platform == Platform.OPENCODE:
             _write_opencode_mcp(global_path, servers)
-        elif platform in (Platform.CURSOR, Platform.WINDSURF):
-            _write_cursor_windsurf_mcp(global_path, servers)
+        elif platform in (Platform.CURSOR, Platform.GEMINI):
+            _write_json_mcpservers(global_path, servers)
         return True
     except IOError:
         return False
@@ -305,8 +305,8 @@ def _write_opencode_mcp(path: Path, servers: Dict[str, Any]):
         json.dump(data, f, indent=2)
 
 
-def _write_cursor_windsurf_mcp(path: Path, servers: Dict[str, Any]):
-    """Write MCP servers to Cursor/Windsurf config (same format as Claude)."""
+def _write_json_mcpservers(path: Path, servers: Dict[str, Any]):
+    """Write MCP servers to JSON config with mcpServers key (Cursor, Gemini)."""
     data = {}
     if path.exists():
         try:
@@ -342,7 +342,7 @@ def _count_mcp_servers(platform: Platform) -> int:
             with open(global_path, 'r') as f:
                 data = json.load(f)
             return len(data.get("mcp", {}))
-        elif platform in (Platform.CURSOR, Platform.WINDSURF):
+        elif platform in (Platform.CURSOR, Platform.GEMINI):
             with open(global_path, 'r') as f:
                 data = json.load(f)
             return len(data.get("mcpServers", {}))
@@ -397,7 +397,7 @@ def clean_mcp_servers(platform: Platform, dry_run: bool = False) -> int:
                     with open(global_path, 'w') as f:
                         json.dump(data, f, indent=2)
 
-        elif platform in (Platform.CURSOR, Platform.WINDSURF):
+        elif platform in (Platform.CURSOR, Platform.GEMINI):
             if global_path and global_path.exists():
                 with open(global_path, 'r') as f:
                     data = json.load(f)
