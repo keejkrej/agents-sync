@@ -1,5 +1,6 @@
 """Platform definitions and path management."""
 
+import json
 from pathlib import Path
 from typing import Dict, List
 from enum import Enum
@@ -14,23 +15,56 @@ class Platform(Enum):
     WINDSURF = "windsurf"
 
 
-def _discover_claude_plugin_paths() -> List[Path]:
-    """Discover skill paths under .claude/plugins/marketplaces only."""
+def _get_installed_plugin_paths() -> List[Path]:
+    """
+    Get paths of installed Claude plugins from installed_plugins.json.
+
+    Returns paths from installed_plugins.json rather than scanning marketplaces/,
+    since marketplaces/ contains all available plugins while installed_plugins.json
+    tracks only what the user has actually installed.
+    """
     home = Path.home()
-    marketplace_dir = home / ".claude" / "plugins" / "marketplaces"
+    installed_file = home / ".claude" / "plugins" / "installed_plugins.json"
+    plugin_paths = []
+
+    if not installed_file.exists():
+        return plugin_paths
+
+    try:
+        with open(installed_file, 'r') as f:
+            data = json.load(f)
+
+        plugins = data.get("plugins", {})
+        for plugin_key, installs in plugins.items():
+            # Each plugin can have multiple installs (scoped)
+            # installs is a list of install records
+            if isinstance(installs, list):
+                for install in installs:
+                    install_path = install.get("installPath")
+                    if install_path:
+                        path = Path(install_path)
+                        if path.exists() and path.is_dir():
+                            plugin_paths.append(path)
+    except (json.JSONDecodeError, IOError):
+        pass
+
+    return plugin_paths
+
+
+def _discover_claude_plugin_paths() -> List[Path]:
+    """Discover skill paths from installed Claude plugins."""
+    plugin_paths = _get_installed_plugin_paths()
     skill_paths = []
-    
-    if marketplace_dir.exists() and marketplace_dir.is_dir():
-        # Recursively search for 'skills' directories under marketplace
-        # These are parent directories that contain skill subdirectories
-        for path in marketplace_dir.rglob("skills"):
+
+    for plugin_path in plugin_paths:
+        # Search for 'skills' directories within each installed plugin
+        for path in plugin_path.rglob("skills"):
             if path.is_dir():
                 skill_paths.append(path)
-        
-        # Also include the marketplace directory for recursive scanning
-        # This allows finding skills in any nested structure
-        skill_paths.append(marketplace_dir)
-    
+
+        # Also include the plugin directory itself for recursive scanning
+        skill_paths.append(plugin_path)
+
     return skill_paths
 
 
@@ -77,14 +111,14 @@ def get_mcp_paths(platform: Platform) -> dict:
     Get MCP config file paths for a platform.
 
     Returns:
-        Dictionary with 'global' and optionally 'plugins' paths
+        Dictionary with 'global' and optionally 'plugins' (list of paths)
     """
     home = Path.home()
 
     mcp_paths = {
         Platform.CLAUDE_CODE: {
             "global": home / ".claude.json",
-            "plugins": home / ".claude" / "plugins" / "marketplaces",
+            "plugins": _get_installed_plugin_paths(),
         },
         Platform.CODEX: {
             "global": home / ".codex" / "config.toml",

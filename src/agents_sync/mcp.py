@@ -53,10 +53,12 @@ def _read_claude_mcp() -> Tuple[Dict[str, Any], List[str]]:
         except (json.JSONDecodeError, IOError):
             pass
 
-    # Read plugin configs
-    plugins_path = mcp_paths.get("plugins")
-    if plugins_path and plugins_path.exists():
-        for mcp_json in plugins_path.rglob(".mcp.json"):
+    # Read plugin configs from installed plugins
+    plugin_paths = mcp_paths.get("plugins", [])
+    for plugin_path in plugin_paths:
+        if not plugin_path.exists():
+            continue
+        for mcp_json in plugin_path.rglob(".mcp.json"):
             try:
                 with open(mcp_json, 'r') as f:
                     data = json.load(f)
